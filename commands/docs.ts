@@ -12,6 +12,7 @@ const Turndown = new turndown({
   headingStyle: "atx",
   codeBlockStyle: "fenced",
 });
+import Fuse from "fuse.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,7 +28,7 @@ export default {
   async execute(interaction: CommandInteraction) {
     const query = interaction.options.get("query")?.value as string;
     if (!query) {
-      return interaction.reply("Please provide a query to search for.");
+      return await interaction.reply("Please provide a query to search for.");
     }
 
     const doc = getDocs(docs as Root).find(
@@ -35,19 +36,17 @@ export default {
     );
 
     if (!doc) {
-      return interaction.reply("No documentation found for that query.");
+      return await interaction.reply("No documentation found for that query.");
     }
 
     const attachments: AttachmentBuilder[] = [];
     const reg = /\!\[.+\]\((.+)\)\n*/g;
     const matches = doc.body.matchAll(reg);
     matches.forEach((match) => {
-      console.log(match[1]);
       attachments.push(new AttachmentBuilder("." + match[1]));
     });
     doc.body = doc.body.replaceAll(reg, "");
     doc.body = doc.body.replaceAll("](/", "](https://typst.app/docs");
-    console.log(doc.body);
 
     const url = `https://typst.app/docs${doc.route}`;
 
@@ -59,7 +58,7 @@ export default {
         `${doc.body.slice(0, 2045)}${doc.body.length > 2045 ? "..." : ""}`,
       );
 
-    interaction.reply({
+    await interaction.reply({
       embeds: [embed],
       files: attachments.slice(0, 10),
     });
@@ -68,10 +67,18 @@ export default {
     const focusedValue = interaction.options.getFocused();
     const choices = getDocs(docs as Root);
 
-    const filtered = choices
+    /* const filtered = choices
       .filter((choice) =>
         choice.title.toLowerCase().startsWith(focusedValue.toLowerCase()),
       )
+      .slice(0, 25); */
+    const filtered = new Fuse(choices, {
+      keys: ["title", "description"],
+      includeScore: true,
+    })
+      .search(focusedValue)
+      .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+      .map((i) => i.item)
       .slice(0, 25);
 
     await interaction.respond(
@@ -95,9 +102,7 @@ function getDocs(
         route: doc.route,
         body: (doc.body.kind === "html"
           ? Turndown.turndown(doc.body.content)
-          : doc.body.kind === "type"
-            ? Turndown.turndown(doc.body.content.details)
-            : "no"
+          : Turndown.turndown(doc.body.content.details)
         ).replaceAll("\n\n```", "\n\n```rs"),
       },
       ...getDocs(doc.children),
