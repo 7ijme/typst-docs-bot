@@ -14,6 +14,8 @@ const Turndown = new turndown({
 });
 import Fuse from "fuse.js";
 
+const allDocs = getDocs(docs as Root);
+
 export default {
   data: new SlashCommandBuilder()
     .setName("docs")
@@ -31,7 +33,7 @@ export default {
       return await interaction.reply("Please provide a query to search for.");
     }
 
-    const doc = getDocs(docs as Root).find(
+    const doc = allDocs.find(
       (doc) => doc.title.toLowerCase() === query.toLowerCase(),
     );
 
@@ -65,13 +67,8 @@ export default {
   },
   async autocomplete(interaction: AutocompleteInteraction) {
     const focusedValue = interaction.options.getFocused();
-    const choices = getDocs(docs as Root);
+    const choices = allDocs;
 
-    /* const filtered = choices
-      .filter((choice) =>
-        choice.title.toLowerCase().startsWith(focusedValue.toLowerCase()),
-      )
-      .slice(0, 25); */
     const filtered = new Fuse(choices, {
       keys: ["title", "description"],
       includeScore: true,
@@ -80,6 +77,10 @@ export default {
       .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
       .map((i) => i.item)
       .slice(0, 25);
+
+    if (filtered.length === 0) {
+      filtered.push(allDocs[0]);
+    }
 
     await interaction.respond(
       filtered.map((choice) => ({
