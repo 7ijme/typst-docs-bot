@@ -41,28 +41,43 @@ export default {
       return await interaction.reply("No documentation found for that query.");
     }
 
-    const attachments: AttachmentBuilder[] = [];
+    let attachments: AttachmentBuilder[] = [];
     const reg = /\!\[.+\]\((.+)\)\n*/g;
     const matches = doc.body.matchAll(reg);
     matches.forEach((match) => {
-      attachments.push(new AttachmentBuilder("." + match[1]));
+      attachments.push(
+        new AttachmentBuilder("." + match[1], {
+          name: match[1].substring(8) as string,
+        }),
+      );
     });
+    attachments = attachments.slice(0, 10);
     doc.body = doc.body.replaceAll(reg, "");
     doc.body = doc.body.replaceAll("](/", "](https://typst.app/docs");
 
     const url = `https://typst.app/docs${doc.route}`;
 
-    const embed = new EmbedBuilder()
-      .setTitle("Typst Documentation")
-      .setColor(0x219dac)
-      .setURL(url)
-      .setDescription(
-        `${doc.body.slice(0, 2045)}${doc.body.length > 2045 ? "..." : ""}`,
+    const embeds: EmbedBuilder[] = [];
+    embeds.push(
+      new EmbedBuilder()
+        .setTitle("Typst Documentation")
+        .setColor(0x219dac)
+        .setURL(url)
+        .setDescription(
+          `${doc.body.slice(0, 2045)}${doc.body.length > 2045 ? "..." : ""}`,
+        ),
+    );
+    for (const attachment of attachments) {
+      embeds.push(
+        new EmbedBuilder()
+          .setURL(url)
+          .setImage(`attachment://${attachment.name}`),
       );
+    }
 
     await interaction.reply({
-      embeds: [embed],
-      files: attachments.slice(0, 10),
+      embeds,
+      files: attachments,
     });
   },
   async autocomplete(interaction: AutocompleteInteraction) {
