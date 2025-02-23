@@ -65,9 +65,10 @@ export default {
         .setURL(url)
         .setDescription(
           `${doc.body.slice(0, 2045)}${doc.body.length > 2045 ? "..." : ""}`,
-        ),
+        )
+		.setImage(`attachment://${attachments[0].name}`),
     );
-    for (const attachment of attachments) {
+    for (const attachment of attachments.slice(1)) {
       embeds.push(
         new EmbedBuilder()
           .setURL(url)
